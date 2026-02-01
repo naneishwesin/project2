@@ -8,12 +8,14 @@ export function getPool() {
   if (!pool) {
     pool = new Pool({
       host: process.env.PGHOST,
-      port: process.env.PGPORT ? Number(process.env.PGPORT) : undefined,
+      port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
       user: process.env.PGUSER,
       password: process.env.PGPASSWORD,
       database: process.env.PGDATABASE,
-      max: 5
+      max: 5,
+      ssl: { rejectUnauthorized: false }
     });
+    
   }
   return pool;
 }
