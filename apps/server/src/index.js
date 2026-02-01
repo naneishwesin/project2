@@ -142,10 +142,19 @@ app.get("/api/servers/:serverId/channels", requireAuth, async (req, res) => {
   const { serverId } = req.params;
   try {
     const pool = getPool();
-    const { rows } = await pool.query(
-      "select id, server_id, name from channels where server_id=$1 order by created_at asc",
-      [serverId]
-    );
+    let rows;
+    try {
+      const result = await pool.query(
+        "select id, server_id, name, coalesce(type,'text') as type from channels where server_id=$1 order by type, created_at asc",
+        [serverId]
+      );
+      rows = result.rows;
+    } catch (colErr) {
+      if (colErr.code === "42703") {
+        const result = await pool.query("select id, server_id, name from channels where server_id=$1 order by created_at asc", [serverId]);
+        rows = (result.rows || []).map((r) => ({ ...r, type: "text" }));
+      } else throw colErr;
+    }
     return res.json({ channels: rows });
   } catch (err) {
     if (isDbConnectionError(err)) return res.status(503).json({ error: "database_unavailable" });
@@ -155,28 +164,38 @@ app.get("/api/servers/:serverId/channels", requireAuth, async (req, res) => {
 
 app.post("/api/servers/:serverId/channels", requireAuth, async (req, res) => {
   const { serverId } = req.params;
-  const { name } = req.body || {};
+  const { name, type } = req.body || {};
   if (!name) return res.status(400).json({ error: "missing_name" });
+  const channelType = type === "voice" ? "voice" : "text";
   try {
     const pool = getPool();
     const id = newId();
-    await pool.query("insert into channels (id, server_id, name) values ($1,$2,$3)", [
-      id,
-      serverId,
-      name
-    ]);
-    return res.json({ channel: { id, server_id: serverId, name } });
+    try {
+      await pool.query("insert into channels (id, server_id, name, type) values ($1,$2,$3,$4)", [
+        id,
+        serverId,
+        name,
+        channelType
+      ]);
+    } catch (colErr) {
+      if (colErr.code === "42703") {
+        await pool.query("insert into channels (id, server_id, name) values ($1,$2,$3)", [id, serverId, name]);
+      } else throw colErr;
+    }
+    return res.json({ channel: { id, server_id: serverId, name, type: channelType } });
   } catch (err) {
     if (isDbConnectionError(err)) return res.status(503).json({ error: "database_unavailable" });
     throw err;
   }
 });
 
-// Message history
+// Message history (text channels only; voice channels return empty)
 app.get("/api/channels/:channelId/messages", requireAuth, async (req, res) => {
   const { channelId } = req.params;
   try {
     const pool = getPool();
+    const ch = await pool.query("select type from channels where id=$1", [channelId]);
+    if (ch.rows[0]?.type === "voice") return res.json({ messages: [] });
     const { rows } = await pool.query(
       "select id, channel_id, user_id, username, content, created_at from messages where channel_id=$1 order by created_at desc limit 50",
       [channelId]
@@ -204,6 +223,14 @@ function channelRoom(channelId) {
 function callRoom(callId) {
   return `call:${callId}`;
 }
+
+function voiceChannelRoom(channelId) {
+  return `voice:${channelId}`;
+}
+
+// Map userId -> socket.id for forwarding voice signaling to a specific peer
+const userIdToSocketId = new Map();
+const socketIdToUser = new Map();
 
 async function setPresence(userId, username, isOnline) {
   const r = await getRedis();
@@ -235,10 +262,14 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
   const { id: userId, username } = socket.user;
+  userIdToSocketId.set(userId, socket.id);
+  socketIdToUser.set(socket.id, { id: userId, username });
 
   setPresence(userId, username, true).catch(() => {});
 
   socket.on("disconnect", () => {
+    userIdToSocketId.delete(userId);
+    socketIdToUser.delete(socket.id);
     setPresence(userId, username, false).catch(() => {});
   });
 
@@ -337,6 +368,48 @@ io.on("connection", (socket) => {
       await getPool().query("update calls set ended_at=now() where id=$1", [callId]);
     } catch {}
     io.to(callRoom(callId)).emit("call:ended", { callId });
+  });
+
+  // --- Voice channels (Discord-style: join/leave room, mesh WebRTC) ---
+  socket.on("voice-channel:join", async ({ channelId }) => {
+    if (!channelId) return;
+    const room = voiceChannelRoom(channelId);
+    await socket.join(room);
+    const roomSockets = io.sockets.adapter.rooms.get(room);
+    const members = [];
+    if (roomSockets) {
+      for (const sid of roomSockets) {
+        if (sid === socket.id) continue;
+        const u = socketIdToUser.get(sid);
+        if (u) members.push(u);
+      }
+    }
+    socket.emit("voice-channel:members", { channelId, members });
+    socket.to(room).emit("voice-channel:user-joined", { channelId, user: { id: userId, username } });
+  });
+
+  socket.on("voice-channel:leave", async ({ channelId }) => {
+    if (!channelId) return;
+    await socket.leave(voiceChannelRoom(channelId));
+    socket.to(voiceChannelRoom(channelId)).emit("voice-channel:user-left", { channelId, user: { id: userId, username } });
+  });
+
+  socket.on("voice-signal:offer", ({ channelId, toUserId, offer }) => {
+    if (!channelId || !toUserId || !offer) return;
+    const toSid = userIdToSocketId.get(toUserId);
+    if (toSid) io.to(toSid).emit("voice-signal:offer", { channelId, from: userId, fromUsername: username, offer });
+  });
+
+  socket.on("voice-signal:answer", ({ channelId, toUserId, answer }) => {
+    if (!channelId || !toUserId || !answer) return;
+    const toSid = userIdToSocketId.get(toUserId);
+    if (toSid) io.to(toSid).emit("voice-signal:answer", { channelId, from: userId, answer });
+  });
+
+  socket.on("voice-signal:ice", ({ channelId, toUserId, candidate }) => {
+    if (!channelId || !toUserId || !candidate) return;
+    const toSid = userIdToSocketId.get(toUserId);
+    if (toSid) io.to(toSid).emit("voice-signal:ice", { channelId, from: userId, candidate });
   });
 });
 

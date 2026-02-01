@@ -2,6 +2,7 @@
 
 This repo is a **student-scale prototype** designed to demonstrate an **enterprise-scale AWS architecture**:
 
+- **Text channels** and **voice channels** (Discord-style): chat in text channels, join voice channels for real-time audio
 - **WebSocket** real-time text chat
 - **WebRTC** voice/video using **WebSocket signaling**
 - **RDS (Postgres)** for message history
@@ -22,6 +23,8 @@ Prereqs: Node.js 18+
    ```bash
    docker exec -i project2-postgres-1 psql -U postgres -d rtcp < apps/server/src/schema.sql
    ```
+   For an existing DB without a `type` column on `channels`, run:
+   `docker exec -i project2-postgres-1 psql -U postgres -d rtcp < apps/server/src/migration-channel-type.sql`
    If Postgres wasn’t running before, run `docker compose up -d` again so the postgres container starts.
 3. **Config**: copy `apps/server/.env.example` to `apps/server/.env` (defaults use port 5433).
 4. **Run the app**:

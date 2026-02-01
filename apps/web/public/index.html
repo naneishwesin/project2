@@ -36,19 +36,48 @@
         <button class="server-add server-add-icon" id="btnServerSettings" title="Server settings">⚙</button>
       </aside>
 
-      <!-- Middle: Channel list (Discord Friends-style) -->
+      <!-- Middle: Channel list (Discord-style) -->
       <aside class="channel-sidebar">
         <header class="channel-sidebar-header">
-          <span id="currentServerName" class="server-name">Select a server</span>
-          <button class="icon-btn" id="btnCreateChannel" title="Create channel">#</button>
+          <div class="server-name-dropdown-wrap">
+            <button class="server-name-wrap" id="serverNameWrap" title="Server options">
+              <span id="currentServerName" class="server-name">Select a server</span>
+              <span class="server-name-chevron" aria-hidden="true">▼</span>
+            </button>
+            <div id="serverDropdown" class="server-dropdown hidden">
+              <button class="server-dropdown-item" id="serverDropdownInvite">Invite People</button>
+              <button class="server-dropdown-item" id="serverDropdownSettings">Server Settings</button>
+            </div>
+          </div>
+          <div class="channel-sidebar-header-actions">
+            <button class="icon-btn" id="btnCreateChannel" title="Create channel">+</button>
+          </div>
         </header>
         <div class="channel-search-wrap">
-          <input type="text" id="channelSearch" class="channel-search" placeholder="Find or start a conversation" autocomplete="off" />
+          <input type="text" id="channelSearch" class="channel-search" placeholder="Search" autocomplete="off" />
         </div>
-        <div class="channel-category">
-          <span class="channel-category-name">Text Channels</span>
+        <div class="channel-categories">
+          <div class="channel-category" data-category="text">
+            <button class="channel-category-header" id="categoryTextToggle" aria-expanded="true">
+              <span class="channel-category-chevron">▼</span>
+              <span class="channel-category-name">Text Channels</span>
+            </button>
+            <button class="channel-category-add" id="btnAddTextChannel" title="Create text channel">+</button>
+          </div>
+          <div id="textChannelListWrap" class="channel-list-wrap">
+            <div id="textChannelList" class="channel-list"></div>
+          </div>
+          <div class="channel-category channel-category-voice" data-category="voice">
+            <button class="channel-category-header" id="categoryVoiceToggle" aria-expanded="true">
+              <span class="channel-category-chevron">▼</span>
+              <span class="channel-category-name">Voice Channels</span>
+            </button>
+            <button class="channel-category-add" id="btnAddVoiceChannel" title="Create voice channel">+</button>
+          </div>
+          <div id="voiceChannelListWrap" class="channel-list-wrap">
+            <div id="voiceChannelList" class="channel-list"></div>
+          </div>
         </div>
-        <div id="channelList" class="channel-list"></div>
         <div class="channel-sidebar-footer">
           <div class="user-panel">
             <div class="user-avatar-wrap">
@@ -68,10 +97,10 @@
         </div>
       </aside>
 
-      <!-- Right: Chat area -->
+      <!-- Right: Chat area (Discord-style) -->
       <main class="chat-area">
         <header class="chat-header">
-          <span class="chat-header-hash">#</span>
+          <span id="channelHeaderPrefix" class="chat-header-prefix">#</span>
           <span id="channelNameDisplay" class="chat-header-name">general</span>
           <div class="chat-header-actions">
             <button class="icon-btn" title="Voice call" id="btnCreateVoice">📞</button>
@@ -81,6 +110,22 @@
             <button class="icon-btn danger" title="Hang up" id="btnHangup">✕</button>
           </div>
         </header>
+        <!-- Empty state: no channel selected -->
+        <div id="emptyState" class="chat-empty-state hidden">
+          <div class="chat-empty-icon">#</div>
+          <h2 class="chat-empty-title">Select a channel</h2>
+          <p class="chat-empty-text">Choose a text channel from the left to start chatting, or join a voice channel.</p>
+        </div>
+        <!-- Voice channel view: when user is in a voice channel -->
+        <div id="voiceChannelView" class="voice-channel-view hidden">
+          <div class="voice-channel-view-header">
+            <span class="voice-channel-view-icon">🔊</span>
+            <span id="voiceChannelViewName" class="voice-channel-view-name">Voice Channel</span>
+          </div>
+          <p class="voice-channel-view-hint">You're connected. Others in this channel can hear you.</p>
+          <div id="voiceChannelMembers" class="voice-channel-members"></div>
+          <button class="btn danger voice-channel-leave" id="btnLeaveVoiceChannel">Leave voice channel</button>
+        </div>
         <!-- Video call panel: visible when in a voice/video call -->
         <div id="videoCallPanel" class="video-call-panel hidden">
           <div class="video-call-label">Video call</div>
@@ -95,15 +140,24 @@
             </div>
           </div>
         </div>
-        <div class="messages-container" id="messages"></div>
-        <div class="message-input-wrap">
-          <input
-            id="chatInput"
-            class="message-input"
-            placeholder="Message #general"
-            autocomplete="off"
-          />
-          <button class="icon-btn send-btn" id="btnSend" title="Send">↑</button>
+        <!-- Text channel: messages + input -->
+        <div id="chatContent" class="chat-content">
+          <div id="channelStartMarker" class="channel-start-marker hidden">
+            <span class="channel-start-icon">#</span>
+            <span id="channelStartText" class="channel-start-text">This is the start of #general</span>
+          </div>
+          <div class="messages-container" id="messages"></div>
+          <div class="message-input-wrap">
+            <button class="icon-btn message-input-add" id="btnAttach" title="Upload file">+</button>
+            <input
+              id="chatInput"
+              class="message-input"
+              placeholder="Message #general"
+              autocomplete="off"
+            />
+            <button class="icon-btn message-input-emoji" id="btnEmoji" title="Emoji">😀</button>
+            <button class="icon-btn send-btn" id="btnSend" title="Send">↑</button>
+          </div>
         </div>
       </main>
     </div>
@@ -127,6 +181,10 @@
       <div class="modal-content">
         <h2>Create channel</h2>
         <input id="channelNameInput" class="modal-input" placeholder="Channel name" />
+        <div class="modal-channel-type">
+          <label class="channel-type-option"><input type="radio" name="channelType" value="text" checked /> Text channel</label>
+          <label class="channel-type-option"><input type="radio" name="channelType" value="voice" /> Voice channel</label>
+        </div>
         <div class="modal-actions">
           <button class="btn secondary" id="modalChannelCancel">Cancel</button>
           <button class="btn" id="modalChannelCreate">Create</button>

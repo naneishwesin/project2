@@ -17,8 +17,11 @@ create table if not exists channels (
   id uuid primary key,
   server_id uuid not null references servers(id) on delete cascade,
   name text not null,
+  type text not null default 'text' check (type in ('text','voice')),
   created_at timestamptz not null default now()
 );
+
+-- If table already exists without type, run: alter table channels add column if not exists type text not null default 'text' check (type in ('text','voice'));
 
 create table if not exists messages (
   id uuid primary key,
