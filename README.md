@@ -1,15 +1,14 @@
-## Real-Time Collaborative Platform (Discord-style) — AWS Prototype
+## Real-Time Collaborative Platform (Discord-style)
 
-This repo is a **student-scale prototype** designed to demonstrate an **enterprise-scale AWS architecture**:
+**What you use:** `apps/` (backend + frontend) and `docs/` (architecture, cost, demo script). Run locally with Docker + Node.
 
 - **Text channels** and **voice channels** (Discord-style): chat in text channels, join voice channels for real-time audio
 - **WebSocket** real-time text chat
 - **WebRTC** voice/video using **WebSocket signaling**
-- **RDS (Postgres)** for message history
-- **Redis** for presence/session + low-latency caching
-- **S3** for uploads (optional in prototype)
-- **ALB + ECS + EC2 Auto Scaling Group** (hybrid compute)
-- **CloudWatch** dashboards + alarms
+- **Postgres** (local Docker) for message history
+- **Redis** (local Docker) for presence/session + low-latency caching
+
+The **design document** in `docs/` describes the target AWS architecture (VPC, ALB, ECS, RDS, Redis, S3, CloudWatch). **infra/** is optional reference (Terraform) if you ever want to deploy to AWS; you are not required to use it.
 
 ### Quick start (local)
 
@@ -34,30 +33,20 @@ Prereqs: Node.js 18+
    ```
 5. Open **http://localhost:3001** (web UI). API + WebSocket: **http://localhost:3000**.
 
-### What’s in here
+### What you use
 
-- `apps/server`: Express + Socket.IO (chat + WebRTC signaling), REST endpoints
-- `apps/web`: plain HTML/JS frontend (chat + voice/video UI)
-- `docs`: architecture diagram, AWS build steps, demo script, cost template
+- **`apps/server`** — Express + Socket.IO (chat + WebRTC signaling), REST API, Postgres + Redis
+- **`apps/web`** — plain HTML/JS frontend (Discord-style UI, text/voice channels, chat, voice/video)
+- **`docs/`** — architecture diagram, service justification, cost estimate, demo video script
 
-### Deploy to AWS
+### Docs (for your submission)
 
-From **infra/** run Terraform to create VPC, ALB, ECS, EC2 ASG, RDS, Redis, S3 (matches **docs/aws-build-steps.md**):
-
-```bash
-cd infra && cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars: set db_password
-terraform init && terraform apply
-```
-
-Then build/push the server image to ECR and run schema on RDS. Full steps: **infra/README.md**.
-
-### AWS delivery (for your checklist)
-
-See:
 - `docs/architecture.md` — system diagram (SVG + Mermaid), traffic flow, service justification
-- `docs/aws-build-steps.md` — Phase 2–5, 9 (VPC, ALB, ECS, ASG, RDS, Redis, S3, CloudWatch)
-- `docs/demo-runbook.md` — 6–10 min video script
-- `docs/cost-estimate.md` — prototype + enterprise cost
-- `docs/CHECK-ALL.md` — verification summary and rubric alignment
+- `docs/system-architecture.svg` — diagram image
+- `docs/cost-estimate.md` — monthly cost (prototype + enterprise)
+- `docs/aws-build-steps.md` — target AWS architecture (manual build steps; for design reference)
+- `docs/demo-runbook.md` — script for your 6–10 min demo video
+- `docs/SUBMISSION-CHECKLIST.md` — what’s done vs what you still do
+
+**`infra/`** — Optional. Terraform for the same AWS design; use only if you want to deploy to AWS. You are not using it for this project.
 

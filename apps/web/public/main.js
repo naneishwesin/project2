@@ -1,5 +1,5 @@
-// Set window.__API_BASE__ before loading (e.g. to ALB URL) or leave default for local backend on :3000
-const API_BASE = (typeof window !== "undefined" && window.__API_BASE__) || "http://localhost:3000";
+// Default: AWS ALB. For local dev, set window.__API_BASE__ = "http://localhost:3000" before loading main.js
+const API_BASE = (typeof window !== "undefined" && window.__API_BASE__) || "http://rtcp-alb-1195294811.ap-southeast-1.elb.amazonaws.com";
 
 const el = (id) => document.getElementById(id);
 
@@ -304,7 +304,7 @@ function updateMainView() {
   } else {
     if (voiceView) voiceView.classList.add("hidden");
     if (chatContent) chatContent.classList.add("hidden");
-    if (startMarker) startMarker.classList.add("hidden");
+    if (startMarker && el("channelStartMarker")) el("channelStartMarker").classList.add("hidden");
     if (emptyState) emptyState.classList.remove("hidden");
     if (channelNameDisplay) channelNameDisplay.textContent = "general";
     const prefix = el("channelHeaderPrefix");

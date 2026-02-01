@@ -1,0 +1,70 @@
+# Fault-tolerance demo: Nginx (LB) + 2× server + Postgres + Redis
+# Run: docker compose -f docker-compose.fault-demo.yml up --build -d
+# Then open app with API_BASE=http://localhost:8080 (see docs/demo-runbook.md)
+# Kill one server: docker compose -f docker-compose.fault-demo.yml stop server1
+# Show app still works. Restart: docker compose -f docker-compose.fault-demo.yml start server1
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: rtcp
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  server1:
+    build: ./apps/server
+    environment:
+      PORT: 3000
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: rtcp
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: demo-secret
+      WEB_ORIGIN: http://localhost:3001
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  server2:
+    build: ./apps/server
+    environment:
+      PORT: 3000
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: rtcp
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: demo-secret
+      WEB_ORIGIN: http://localhost:3001
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-fault-demo.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - server1
+      - server2

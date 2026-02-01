@@ -1,42 +1,43 @@
 # Project Check — Verification Summary
 
-Last checked against: **Technical Requirements**, **Deliverables**, and **Assessment Rubric (100 Marks)**.
+You use **`apps/`** and **`docs/`** only. **`infra/`** is not used (optional reference). Last checked against: **Technical Requirements**, **Deliverables**, and **Assessment Rubric (100 Marks)**.
 
 ---
 
-## 1. Technical Requirements → Implementation
+## 1. Technical Requirements → How You Cover Them
+
+**Prototype (what you run):** `apps/server` + `apps/web` with local Postgres + Redis.  
+**Design (what you submit):** `docs/architecture.md`, `docs/system-architecture.svg`, `docs/cost-estimate.md`, `docs/aws-build-steps.md` describe the target AWS architecture. You do **not** use `infra/` Terraform.
 
 ### 1.1 Infrastructure & Networking
 
-| Requirement | Implementation | Where |
-|-------------|----------------|--------|
-| **Custom VPC, Public + Private subnets across ≥2 AZs** | VPC 10.0.0.0/16, 2 AZs, public subnets (ALB), private subnets (ECS, EC2, RDS, Redis) | `infra/vpc.tf`, design in `architecture.md` |
-| **Gateway services for private instances** | NAT Gateway so private instances can reach internet (ECR, etc.) | `infra/vpc.tf` |
-| **Secure management access (Bastion or identity-aware proxy)** | **SSM Session Manager** on EC2 — no Bastion; identity-aware, no SSH keys | `infra/ec2-asg.tf` (IAM `AmazonSSMManagedInstanceCore`), `aws-build-steps.md` |
-| **Strict firewall / access control** | SG-ALB → SG-APP only; SG-APP → SG-DB 5432, SG-REDIS 6379; no public DB/Redis | `infra/security-groups.tf` |
-| **Load Balancer** | Application Load Balancer, TG-ECS + TG-EC2, rules for /api, /socket.io, /health, /legacy | `infra/alb.tf` |
+| Requirement | In your project |
+|-------------|-----------------|
+| **Custom VPC, Public + Private subnets, ≥2 AZs** | **Design doc** (`docs/architecture.md`, `docs/aws-build-steps.md`): VPC, 2 AZ, public/private subnets, ALB, ECS, RDS, Redis. |
+| **Gateway for private instances, secure management (Bastion/identity-aware)** | **Design doc**: NAT, SSM (identity-aware). |
+| **Strict firewall / access control** | **Design doc**: SG hierarchy (ALB→APP→DB/Redis). |
+| **Load Balancer** | **Design doc**: ALB, target groups. |
 
 ### 1.2 Compute & Scaling
 
-| Requirement | Implementation | Where |
-|-------------|----------------|--------|
-| **Hybrid compute (VMs + Containers)** | EC2 Auto Scaling Group (legacy /health) + ECS Fargate (chat + signaling) | `infra/ec2-asg.tf`, `infra/ecs.tf` |
-| **Elasticity (scaling policies)** | ASG: CPU > 70% → scale out; ECS: CPU > 70% → add tasks | `infra/ec2-asg.tf`, `infra/ecs.tf` |
+| Requirement | In your project |
+|-------------|-----------------|
+| **Hybrid compute (VMs + Containers)** | **Design doc**: EC2 ASG + ECS Fargate. |
+| **Elasticity (scaling policies)** | **Design doc**: CPU-based scaling for ECS and ASG. |
 
 ### 1.3 Data Management
 
-| Requirement | Implementation | Where |
-|-------------|----------------|--------|
-| **Relational DB (HA / Multi-Zone)** | RDS Postgres with **Multi-AZ** (variable `rds_multi_az`, default true) | `infra/rds.tf`, `infra/variables.tf` |
-| **NoSQL / Cache (Redis)** | ElastiCache Redis, SG-REDIS from SG-APP only | `infra/elasticache.tf` |
-| **Object storage + CDN** | S3 bucket + **CloudFront** distribution (OAC) for global distribution | `infra/s3.tf`, `infra/cloudfront.tf` |
+| Requirement | In your project |
+|-------------|-----------------|
+| **Relational DB (HA / Multi-Zone)** | **Prototype:** Postgres (Docker). **Design doc:** RDS Multi-AZ. |
+| **NoSQL / Cache (Redis)** | **Prototype:** Redis (Docker) in `apps/server`. **Design doc:** ElastiCache. |
+| **Object storage + CDN** | **Design doc:** S3 + CloudFront. |
 
 ### 1.4 Monitoring & Observability
 
-| Requirement | Implementation | Where |
-|-------------|----------------|--------|
-| **Custom monitoring dashboards** | CloudWatch dashboard: ALB RequestCount, TargetResponseTime, Healthy/UnHealthy hosts, ECS CPU, EC2 ASG CPU, RDS CPU & connections | `infra/cloudwatch.tf` |
-| **Threshold-based alarms** | Alarms: ALB UnHealthyHostCount > 0, ECS CPU > 85%, RDS CPU > 80%, ALB 5xx count > 0 | `infra/cloudwatch.tf` |
+| Requirement | In your project |
+|-------------|-----------------|
+| **Custom dashboards, threshold-based alarms** | **Design doc:** CloudWatch dashboard + alarms (`docs/aws-build-steps.md` Phase 9). |
 
 ---
 
@@ -53,27 +54,27 @@ Last checked against: **Technical Requirements**, **Deliverables**, and **Assess
 
 ---
 
-## 3. Assessment Rubric (100 Marks) — Alignment
+## 3. Assessment Rubric (100 Marks) — Alignment (apps/ + docs/ only)
 
-| Category | Marks | How the project addresses it |
-|----------|-------|-------------------------------|
+| Category | Marks | How you address it |
+|----------|-------|---------------------|
 | **Proposal** | 10 | One-pager: domain, requirements, Free Tier note, team roles (if required). |
-| **Architectural Soundness** | 30 | **Networking:** VPC, 2 AZ, public/private subnets. **HA:** RDS Multi-AZ, ECS/ASG across subnets. **Security:** SG hierarchy (ALB→APP→DB/Redis), SSM for management (no Bastion). All in Terraform + design doc. |
-| **System Functionality** | 20 | App: login, servers/channels, real-time chat, history, voice/video. State in RDS + Redis; correct across zones when deployed. Prototype runs locally; deploy with `infra/` for AWS. |
-| **Scalability & Resilience** | 25 | **Auto-scaling:** ECS + ASG CPU-based policies (Terraform). **Failover:** Demo in video — stop task/instance, ALB shifts traffic; RDS Multi-AZ; WebRTC P2P survives signaling restart. |
-| **Documentation & Presentation** | 15 | Design doc (diagram, justification, cost); demo runbook; clear presentation (architecture, challenge, HA). |
+| **Architectural Soundness** | 30 | **Design doc** (docs/): VPC, 2 AZ, subnets, HA, security, ALB, ECS, ASG, RDS, Redis, S3, CloudWatch. You document the architecture; you don’t run infra/. |
+| **System Functionality** | 20 | **Prototype** (apps/): login, servers/channels, chat, voice/video, state in Postgres + Redis. Run locally with Docker + npm run dev. |
+| **Scalability & Resilience** | 25 | **Design doc** describes auto-scaling and failover. **Video:** show app recovery (e.g. restart server, reconnect) or explain from design. |
+| **Documentation & Presentation** | 15 | Design doc in docs/; demo runbook; **you** create and give the presentation. |
 
 ---
 
-## 4. What’s in Code vs What You Do
+## 4. What You Use vs What You Do
 
 | Item | In repo | You do |
 |------|---------|--------|
-| **Infra (Terraform)** | VPC, ALB, ECS, EC2 ASG, RDS (Multi-AZ), Redis, S3, CloudFront, CloudWatch dashboard + alarms | `terraform init/apply`, set `terraform.tfvars`, build/push image, run schema on RDS |
-| **Backend / Frontend** | Full prototype (auth, chat, WebRTC, Discord-style UI) | Run locally or point frontend at ALB after deploy |
-| **Design doc** | architecture.md, system-architecture.svg, cost-estimate.md | Submit / present |
-| **Demo video** | demo-runbook.md script | Record 6–10 min with fault-tolerance and scaling evidence |
-| **Presentation** | Rubric alignment above | Create slides, 15 min present |
+| **apps/** (backend + frontend) | Full prototype (auth, chat, WebRTC, Discord-style UI, text/voice channels) | Run locally: docker-compose + npm run dev |
+| **docs/** (design doc) | architecture.md, system-architecture.svg, cost-estimate.md, aws-build-steps.md | Submit / use in presentation |
+| **infra/** | Terraform for AWS (optional reference) | **Not used** |
+| **Demo video** | demo-runbook.md script | Record 6–10 min (prototype + fault tolerance) |
+| **Presentation** | — | Create slides, 15 min present |
 
 ---
 
@@ -87,8 +88,8 @@ Last checked against: **Technical Requirements**, **Deliverables**, and **Assess
 
 ---
 
-## 6. Deploy to AWS (when you need to show the system)
+## 6. Deploy to AWS (optional)
 
-See **`infra/README.md`**: configure `terraform.tfvars`, `terraform init && terraform apply`, build/push image to ECR, run schema on RDS, open ALB URL. Optional: `terraform -chdir=infra output cloudwatch_dashboard_url` for the dashboard; CloudFront URL for S3 content.
+You are **not** using `infra/`. If you ever want to deploy to AWS, see `docs/aws-build-steps.md` (manual) or `infra/README.md` (Terraform). For this project, **apps/ + docs/** are enough.
 
-All technical requirements and rubric criteria are **designed and implemented** in code/docs; complete proposal, video, and presentation for submission.
+All technical requirements are **documented** in docs/ and **implemented in the prototype** (apps/) as far as the application; complete proposal, video, and presentation for submission.
