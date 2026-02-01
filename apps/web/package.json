@@ -1,0 +1,14 @@
+{
+  "name": "@rtcp/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/dev-server.js",
+    "lint": "node -e \"process.exit(0)\""
+  },
+  "dependencies": {
+    "mime": "^4.0.4"
+  }
+}
+

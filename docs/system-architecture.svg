@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" font-family="system-ui, sans-serif" font-size="12">
+  <defs>
+    <style>
+      .vpc { fill: #1e3a5f; stroke: #2d5a87; stroke-width: 2; }
+      .az { fill: #0d2137; stroke: #2d5a87; stroke-width: 1; }
+      .pub { fill: #2d5a87; stroke: #4a90d9; }
+      .priv { fill: #1a365d; stroke: #3d7ab8; }
+      .box { fill: #2b4a6f; stroke: #4a90d9; stroke-width: 1; rx: 4; }
+      .db { fill: #3d5a3d; stroke: #5a8a5a; }
+      .cache { fill: #5a3d3d; stroke: #8a5a5a; }
+      .ext { fill: #3d4a5a; stroke: #5a7a9a; }
+      .title { font-weight: bold; font-size: 14px; fill: #e0e8f0; }
+      .label { fill: #b0c4de; font-size: 11px; }
+      .arrow { stroke: #6aa8ff; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow2 { stroke: #8ac; stroke-width: 1.5; fill: none; stroke-dasharray: 4 2; }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6aa8ff" />
+    </marker>
+  </defs>
+  <text x="450" y="28" text-anchor="middle" class="title">Discord-Style Real-Time Platform  AWS System Architecture</text>
+  <rect x="20" y="50" width="100" height="50" class="ext" rx="4"/>
+  <text x="70" y="78" text-anchor="middle" class="label">Users / Browsers</text>
+  <rect x="160" y="45" width="720" height="480" class="vpc" rx="6"/>
+  <text x="530" y="68" text-anchor="middle" class="title">VPC (10.0.0.0/16)  2 Availability Zones</text>
+  <rect x="180" y="85" width="340" height="430" class="az" rx="4"/>
+  <text x="350" y="108" text-anchor="middle" class="label">Availability Zone A</text>
+  <rect x="200" y="120" width="300" height="75" class="pub" rx="4"/>
+  <text x="350" y="138" text-anchor="middle" class="label">Public Subnet A</text>
+  <rect x="240" y="150" width="220" height="32" class="box"/>
+  <text x="350" y="170" text-anchor="middle" class="label">Application Load Balancer (ALB)</text>
+  <text x="350" y="182" text-anchor="middle" class="label" font-size="10">HTTPS :443 + WebSocket</text>
+  <rect x="200" y="210" width="300" height="290" class="priv" rx="4"/>
+  <text x="350" y="230" text-anchor="middle" class="label">Private Subnet A</text>
+  <rect x="220" y="245" width="260" height="42" class="box"/>
+  <text x="350" y="265" text-anchor="middle" class="label">ECS Service (Chat + WebRTC Signaling)</text>
+  <rect x="220" y="298" width="260" height="38" class="box"/>
+  <text x="350" y="318" text-anchor="middle" class="label">EC2 Auto Scaling Group (Legacy REST)</text>
+  <rect x="220" y="348" width="125" height="70" class="db" rx="4"/>
+  <text x="282" y="378" text-anchor="middle" class="label">RDS Postgres</text>
+  <text x="282" y="390" text-anchor="middle" class="label" font-size="10">Multi-AZ</text>
+  <rect x="355" y="348" width="125" height="70" class="cache" rx="4"/>
+  <text x="417" y="378" text-anchor="middle" class="label">ElastiCache</text>
+  <text x="417" y="390" text-anchor="middle" class="label" font-size="10">Redis</text>
+  <rect x="540" y="85" width="340" height="430" class="az" rx="4"/>
+  <text x="710" y="108" text-anchor="middle" class="label">Availability Zone B</text>
+  <rect x="560" y="120" width="300" height="75" class="pub" rx="4"/>
+  <text x="710" y="138" text-anchor="middle" class="label">Public Subnet B</text>
+  <rect x="600" y="150" width="220" height="32" class="box"/>
+  <text x="710" y="170" text-anchor="middle" class="label">ALB (same)</text>
+  <rect x="560" y="210" width="300" height="290" class="priv" rx="4"/>
+  <text x="710" y="230" text-anchor="middle" class="label">Private Subnet B</text>
+  <rect x="580" y="245" width="260" height="42" class="box"/>
+  <text x="710" y="265" text-anchor="middle" class="label">ECS tasks (scale-out)</text>
+  <rect x="580" y="298" width="260" height="38" class="box"/>
+  <text x="710" y="318" text-anchor="middle" class="label">EC2 instances (ASG)</text>
+  <rect x="580" y="348" width="125" height="70" class="db" rx="4"/>
+  <text x="642" y="378" text-anchor="middle" class="label">RDS standby</text>
+  <rect x="715" y="348" width="125" height="70" class="cache" rx="4"/>
+  <text x="777" y="378" text-anchor="middle" class="label">Redis replica</text>
+  <rect x="720" y="50" width="140" height="50" class="ext" rx="4"/>
+  <text x="790" y="72" text-anchor="middle" class="label">CloudFront CDN</text>
+  <rect x="720" y="110" width="140" height="50" class="ext" rx="4"/>
+  <text x="790" y="135" text-anchor="middle" class="label">S3 Bucket</text>
+  <text x="790" y="147" text-anchor="middle" class="label" font-size="10">avatars / uploads</text>
+  <path d="M 120 75 L 198 175" class="arrow"/>
+  <text x="155" y="118" class="label" font-size="10">HTTPS / WSS</text>
+  <path d="M 350 195 L 350 243" class="arrow"/>
+  <text x="358" y="222" class="label" font-size="9">/api, /socket.io</text>
+  <path d="M 710 195 L 710 243" class="arrow"/>
+  <path d="M 350 195 L 350 255 L 350 296" class="arrow2"/>
+  <text x="365" y="278" class="label" font-size="9">/legacy</text>
+  <path d="M 350 287 L 282 346" class="arrow"/>
+  <path d="M 350 287 L 417 346" class="arrow"/>
+  <path d="M 350 336 L 282 346" class="arrow"/>
+  <path d="M 350 336 L 417 346" class="arrow"/>
+  <path d="M 120 75 L 718 75" class="arrow2"/>
+  <text x="420" y="68" class="label" font-size="10">static / media</text>
+  <path d="M 790 100 L 790 108" class="arrow2"/>
+  <rect x="180" y="515" width="520" height="52" fill="rgba(0,0,0,0.3)" rx="4" stroke="#4a90d9"/>
+  <text x="200" y="532" class="label">Traffic: Browser � ALB � ECS (chat/signaling) or EC2 (legacy) � RDS + Redis. WebRTC media is P2P; only signaling via ECS.</text>
+  <text x="200" y="548" class="label">Security: SG-ALB (443) � SG-APP � SG-DB (5432), SG-REDIS (6379). Management via SSM.</text>
+</svg>

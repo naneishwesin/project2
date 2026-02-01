@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and fill in (do not commit terraform.tfvars if it contains secrets)
+
+aws_region   = "ap-southeast-1"
+project_name = "rtcp"
+
+# Required: set a strong password for RDS
+db_password = "CHANGE_ME_STRONG_PASSWORD"
+
+# Optional: override defaults
+# jwt_secret   = "your-jwt-secret"
+# web_origin   = "http://your-alb-url-or-frontend"
+# ecr_image_tag = "latest"
+# rds_multi_az = true   # false for cheaper dev (single-AZ)
