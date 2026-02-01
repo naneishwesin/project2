@@ -3,3 +3,8 @@ node_modules
 .DS_Store
 dist
 .turbo
+# Terraform
+**/.terraform/*
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.*
