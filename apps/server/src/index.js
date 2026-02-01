@@ -57,11 +57,16 @@ app.get("/health", async (req, res) => {
 
   try {
     const r = await getRedis();
-    await r.ping();
-    details.redis = true;
+    if (r) {
+      await r.ping();
+      details.redis = true;
+    } else {
+      details.redis = true; // Redis disabled but OK
+    }
   } catch {
     details.ok = false;
   }
+  
 
   res.status(details.ok ? 200 : 503).json(details);
 });
