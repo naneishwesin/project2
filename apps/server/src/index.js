@@ -3,29 +3,19 @@ import dotenv from "dotenv";
 import express from "express";
 import helmet from "helmet";
 import http from "http";
-import path from "path";
 import { Server } from "socket.io";
-import { fileURLToPath } from "url";
 
-/* ------------------------------------------------------------------ */
-/* ENV + PATHS                                                         */
-/* ------------------------------------------------------------------ */
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+/* ---------------------------------------------------- */
+/* ENV                                                  */
+/* ---------------------------------------------------- */
 
 dotenv.config();
 
 const PORT = Number(process.env.PORT || 3000);
-const WEB_ORIGIN = "*";
 
-// adjust if your structure differs
-const WEB_PUBLIC_DIR = path.join(__dirname, "..", "..", "..", "web", "public");
-
-
-/* ------------------------------------------------------------------ */
-/* EXPRESS APP                                                         */
-/* ------------------------------------------------------------------ */
+/* ---------------------------------------------------- */
+/* APP                                                  */
+/* ---------------------------------------------------- */
 
 const app = express();
 
@@ -33,43 +23,59 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
-/* ------------------------------------------------------------------ */
-/* HEALTH CHECK (ALB USES THIS)                                        */
-/* ------------------------------------------------------------------ */
+/* ---------------------------------------------------- */
+/* HEALTH (ALB + DEBUG)                                 */
+/* ---------------------------------------------------- */
 
 app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
 
-/* ------------------------------------------------------------------ */
-/* API (MUST COME BEFORE STATIC)                                       */
-/* ------------------------------------------------------------------ */
-
-app.post("/api/auth/login", (req, res) => {
+app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/auth/register", (req, res) => {
+/* ---------------------------------------------------- */
+/* API ROUTES                                           */
+/* ---------------------------------------------------- */
+
+const api = express.Router();
+
+/* ---- AUTH ---- */
+
+api.post("/auth/login", (req, res) => {
+  res.json({ ok: true, user: { username: req.body.username } });
+});
+
+api.post("/auth/register", (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/test", (req, res) => {
-  res.json({ message: "API WORKS" });
+/* ---- CHANNELS (stub so UI WORKS) ---- */
+
+api.get("/channels", (req, res) => {
+  res.json([]);
 });
 
-/* ------------------------------------------------------------------ */
-/* STATIC FRONTEND (LAST)                                              */
-/* ------------------------------------------------------------------ */
-
-app.use(express.static(WEB_PUBLIC_DIR));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(WEB_PUBLIC_DIR, "index.html"));
+api.post("/channels", (req, res) => {
+  res.json({ ok: true });
 });
 
-/* ------------------------------------------------------------------ */
-/* HTTP + SOCKET.IO                                                    */
-/* ------------------------------------------------------------------ */
+/* ---- MESSAGES (stub) ---- */
+
+api.get("/messages", (req, res) => {
+  res.json([]);
+});
+
+api.post("/messages", (req, res) => {
+  res.json({ ok: true });
+});
+
+app.use("/api", api);
+
+/* ---------------------------------------------------- */
+/* HTTP + SOCKET.IO                                     */
+/* ---------------------------------------------------- */
 
 const server = http.createServer(app);
 
@@ -81,9 +87,9 @@ io.on("connection", (socket) => {
   console.log("socket connected");
 });
 
-/* ------------------------------------------------------------------ */
-/* START                                                               */
-/* ------------------------------------------------------------------ */
+/* ---------------------------------------------------- */
+/* START                                                */
+/* ---------------------------------------------------- */
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Backend running on ${PORT}`);
