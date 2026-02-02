@@ -3,94 +3,114 @@ import dotenv from "dotenv";
 import express from "express";
 import helmet from "helmet";
 import http from "http";
+import path from "path";
 import { Server } from "socket.io";
+import { fileURLToPath } from "url";
 
-/* ---------------------------------------------------- */
-/* ENV                                                  */
-/* ---------------------------------------------------- */
-
+/* ---------------- ENV ---------------- */
 dotenv.config();
 
-const PORT = Number(process.env.PORT || 3000);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-/* ---------------------------------------------------- */
-/* APP                                                  */
-/* ---------------------------------------------------- */
+const PORT = 3000;
+const WEB_PUBLIC_DIR = path.join(__dirname, "..", "..", "apps", "web", "public");
 
+/* ---------------- APP ---------------- */
 const app = express();
-
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
+app.use(helmet({ contentSecurityPolicy: false }));
 
-/* ---------------------------------------------------- */
-/* HEALTH (ALB + DEBUG)                                 */
-/* ---------------------------------------------------- */
-
+/* ---------------- HEALTH ---------------- */
 app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
 
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true });
+/* ---------------- FAKE DATA ---------------- */
+let servers = [
+  { id: "1", name: "EAD project2" }
+];
+
+let channels = {
+  "1": [{ id: "1", name: "general", serverId: "1" }]
+};
+
+let messages = {
+  "1": []
+};
+
+/* ---------------- AUTH (FAKE) ---------------- */
+app.post("/api/auth/login", (req, res) => {
+  res.json({ user: { id: "u1", email: "test@test.com" } });
 });
 
-/* ---------------------------------------------------- */
-/* API ROUTES                                           */
-/* ---------------------------------------------------- */
-
-const api = express.Router();
-
-/* ---- AUTH ---- */
-
-api.post("/auth/login", (req, res) => {
-  res.json({ ok: true, user: { username: req.body.username } });
+app.post("/api/auth/register", (req, res) => {
+  res.json({ user: { id: "u1", email: "test@test.com" } });
 });
 
-api.post("/auth/register", (req, res) => {
-  res.json({ ok: true });
+/* ---------------- SERVERS ---------------- */
+app.get("/api/servers", (req, res) => {
+  res.json(servers);
 });
 
-/* ---- CHANNELS (stub so UI WORKS) ---- */
-
-api.get("/channels", (req, res) => {
-  res.json([]);
+app.post("/api/servers", (req, res) => {
+  const s = { id: Date.now().toString(), name: req.body.name };
+  servers.push(s);
+  channels[s.id] = [{ id: "general", name: "general", serverId: s.id }];
+  res.json(s);
 });
 
-api.post("/channels", (req, res) => {
-  res.json({ ok: true });
+/* ---------------- CHANNELS ---------------- */
+app.get("/api/servers/:id/channels", (req, res) => {
+  res.json(channels[req.params.id] || []);
 });
 
-/* ---- MESSAGES (stub) ---- */
-
-api.get("/messages", (req, res) => {
-  res.json([]);
+app.post("/api/servers/:id/channels", (req, res) => {
+  const ch = {
+    id: Date.now().toString(),
+    name: req.body.name,
+    serverId: req.params.id
+  };
+  channels[req.params.id].push(ch);
+  messages[ch.id] = [];
+  res.json(ch);
 });
 
-api.post("/messages", (req, res) => {
-  res.json({ ok: true });
+/* ---------------- MESSAGES ---------------- */
+app.get("/api/channels/:id/messages", (req, res) => {
+  res.json(messages[req.params.id] || []);
 });
 
-app.use("/api", api);
+app.post("/api/channels/:id/messages", (req, res) => {
+  const msg = {
+    id: Date.now().toString(),
+    content: req.body.content,
+    user: "You"
+  };
+  messages[req.params.id].push(msg);
+  io.emit("message", msg);
+  res.json(msg);
+});
 
-/* ---------------------------------------------------- */
-/* HTTP + SOCKET.IO                                     */
-/* ---------------------------------------------------- */
+/* ---------------- STATIC FRONTEND ---------------- */
+app.use(express.static(WEB_PUBLIC_DIR));
 
+app.get("*", (req, res) => {
+  res.sendFile(path.join(WEB_PUBLIC_DIR, "index.html"));
+});
+
+/* ---------------- SOCKET.IO ---------------- */
 const server = http.createServer(app);
-
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-io.on("connection", (socket) => {
+io.on("connection", () => {
   console.log("socket connected");
 });
 
-/* ---------------------------------------------------- */
-/* START                                                */
-/* ---------------------------------------------------- */
-
+/* ---------------- START ---------------- */
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Backend running on ${PORT}`);
 });
