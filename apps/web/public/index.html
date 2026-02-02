@@ -1,32 +1,29 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Chat Demo</title>
-  <style>
-    body { font-family: sans-serif; display: flex; height: 100vh; margin: 0 }
-    #servers { width: 200px; background: #eee; padding: 10px }
-    #chat { flex: 1; display: flex; flex-direction: column }
-    #messages { flex: 1; padding: 10px; overflow-y: auto }
-  </style>
+  <title>RTCP Demo</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
+  <h1>Realtime Chat</h1>
+  <input id="msg" placeholder="message" />
+  <button onclick="send()">Send</button>
+  <ul id="chat"></ul>
 
-<div id="login">
-  <input id="username" placeholder="username">
-  <button id="loginBtn">Login</button>
-</div>
+  <script>
+    const socket = io();
 
-<div id="app" style="display:none">
-  <div id="servers"></div>
+    socket.on("message", (msg) => {
+      const li = document.createElement("li");
+      li.innerText = msg;
+      document.getElementById("chat").appendChild(li);
+    });
 
-  <div id="chat">
-    <div id="messages"></div>
-    <input id="input" placeholder="message">
-  </div>
-</div>
-
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="main.js"></script>
+    function send() {
+      const msg = document.getElementById("msg").value;
+      socket.emit("message", msg);
+      document.getElementById("msg").value = "";
+    }
+  </script>
 </body>
 </html>

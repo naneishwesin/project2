@@ -1,62 +1,44 @@
+import { createAdapter } from "@socket.io/redis-adapter";
+import cors from "cors";
 import express from "express";
+import helmet from "helmet";
 import http from "http";
+import { createClient } from "redis";
 import { Server } from "socket.io";
 
 const app = express();
+app.use(cors());
+app.use(helmet());
+
 const server = http.createServer(app);
-const io = new Server(server);
-
-app.use(express.json());
-app.use(express.static("public"));
-
-/* ---- In-memory data ---- */
-
-const servers = {
-  s1: {
-    id: "s1",
-    name: "Demo Server",
-    channels: {
-      c1: { id: "c1", name: "general", messages: [] },
-      c2: { id: "c2", name: "random", messages: [] }
-    }
-  }
-};
-
-/* ---- API ---- */
-
-app.post("/api/login", (req, res) => {
-  res.json({ user: { username: req.body.username } });
+const io = new Server(server, {
+  cors: { origin: "*" }
 });
 
-app.get("/api/servers", (req, res) => {
-  res.json(Object.values(servers));
+const PORT = process.env.PORT || 3000;
+const REDIS_HOST = process.env.REDIS_HOST || "redis";
+const REDIS_PORT = process.env.REDIS_PORT || 6379;
+
+const pubClient = createClient({ url: `redis://${REDIS_HOST}:${REDIS_PORT}` });
+const subClient = pubClient.duplicate();
+
+await pubClient.connect();
+await subClient.connect();
+
+io.adapter(createAdapter(pubClient, subClient));
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
-app.get("/api/servers/:sid/channels", (req, res) => {
-  const server = servers[req.params.sid];
-  res.json(Object.values(server.channels));
-});
+io.on("connection", (socket) => {
+  console.log("🟢 connected:", socket.id);
 
-/* ---- Socket ---- */
-
-io.on("connection", socket => {
-  socket.on("join", ({ channelId, username }) => {
-    socket.username = username;
-    socket.join(channelId);
-
-    const channel = Object.values(servers.s1.channels)
-      .find(c => c.id === channelId);
-
-    socket.emit("messages", channel.messages);
-  });
-
-  socket.on("send", ({ channelId, text }) => {
-    const msg = { user: socket.username, text };
-    servers.s1.channels[channelId].messages.push(msg);
-    io.to(channelId).emit("message", msg);
+  socket.on("message", (msg) => {
+    io.emit("message", msg);
   });
 });
 
-server.listen(3000, () =>
-  console.log("✅ http://localhost:3000")
-);
+server.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
