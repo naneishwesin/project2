@@ -1,44 +1,35 @@
--- Minimal schema for the prototype (RDS Postgres in AWS).
+users (
+  id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT now()
+)
 
-create table if not exists users (
-  id uuid primary key,
-  username text unique not null,
-  password_hash text not null,
-  created_at timestamptz not null default now()
-);
+servers (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  owner_id INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT now()
+)
 
-create table if not exists servers (
-  id uuid primary key,
-  name text not null,
-  created_at timestamptz not null default now()
-);
+server_members (
+  user_id INTEGER REFERENCES users(id),
+  server_id INTEGER REFERENCES servers(id),
+  PRIMARY KEY (user_id, server_id)
+)
 
-create table if not exists channels (
-  id uuid primary key,
-  server_id uuid not null references servers(id) on delete cascade,
-  name text not null,
-  type text not null default 'text' check (type in ('text','voice')),
-  created_at timestamptz not null default now()
-);
+channels (
+  id SERIAL PRIMARY KEY,
+  server_id INTEGER REFERENCES servers(id),
+  name TEXT NOT NULL,
+  type TEXT CHECK (type IN ('text', 'voice')),
+  created_at TIMESTAMP DEFAULT now()
+)
 
--- If table already exists without type, run: alter table channels add column if not exists type text not null default 'text' check (type in ('text','voice'));
-
-create table if not exists messages (
-  id uuid primary key,
-  channel_id uuid not null references channels(id) on delete cascade,
-  user_id uuid not null references users(id) on delete cascade,
-  username text not null,
-  content text not null,
-  created_at timestamptz not null default now()
-);
-
--- Optional: metadata only (WebRTC media is P2P).
-create table if not exists calls (
-  id uuid primary key,
-  channel_id uuid not null references channels(id) on delete cascade,
-  created_by uuid not null references users(id) on delete cascade,
-  kind text not null check (kind in ('voice','video')),
-  created_at timestamptz not null default now(),
-  ended_at timestamptz
-);
-
+messages (
+  id SERIAL PRIMARY KEY,
+  channel_id INTEGER REFERENCES channels(id),
+  user_id INTEGER REFERENCES users(id),
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT now()
+)
