@@ -1,95 +1,83 @@
-const API = "/api";
-let socket = null;
-let currentUser = null;
-let currentServer = null;
+let socket;
 let currentChannel = "c1";
+let user;
 
-/* ---------------- DOM ---------------- */
-
-const loginScreen = document.getElementById("loginScreen");
-const app = document.getElementById("app");
-const loginForm = document.getElementById("loginForm");
-const usernameInput = document.getElementById("username");
-const authHint = document.getElementById("authHint");
-
+const loginDiv = document.getElementById("login");
+const appDiv = document.getElementById("app");
+const serversDiv = document.getElementById("servers");
 const messagesDiv = document.getElementById("messages");
-const chatInput = document.getElementById("chatInput");
-const btnSend = document.getElementById("btnSend");
+const input = document.getElementById("input");
 
-/* ---------------- LOGIN ---------------- */
+/* ---- Login ---- */
 
-loginForm.onsubmit = async (e) => {
-  e.preventDefault();
-  const username = usernameInput.value.trim();
-  if (!username) return;
-
-  const res = await fetch(`${API}/auth/login`, {
+document.getElementById("loginBtn").onclick = async () => {
+  const username = document.getElementById("username").value;
+  const res = await fetch("/api/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username })
   });
+  user = (await res.json()).user;
 
-  const data = await res.json();
-  currentUser = data.user;
+  loginDiv.style.display = "none";
+  appDiv.style.display = "flex";
 
-  loginScreen.classList.add("hidden");
-  app.classList.remove("hidden");
-
-  connectSocket();
-  loadServer();
+  socket = io();
+  loadServers();
+  joinChannel("c1");
 };
 
-/* ---------------- SOCKET ---------------- */
+/* ---- Servers + Channels ---- */
 
-function connectSocket() {
-  socket = io();
+async function loadServers() {
+  const res = await fetch("/api/servers");
+  const servers = await res.json();
 
-  socket.on("connect", () => {
-    console.log("✅ SOCKET CONNECTED", socket.id);
-    socket.emit("room:join", {
-      roomId: currentChannel,
-      username: currentUser.username
+  serversDiv.innerHTML = "";
+  servers[0].channels &&
+    Object.values(servers[0].channels).forEach(ch => {
+      const btn = document.createElement("button");
+      btn.textContent = "# " + ch.name;
+      btn.onclick = () => joinChannel(ch.id);
+      serversDiv.appendChild(btn);
     });
+}
+
+/* ---- Socket ---- */
+
+function joinChannel(id) {
+  currentChannel = id;
+  messagesDiv.innerHTML = "";
+
+  socket.emit("join", {
+    channelId: id,
+    username: user.username
   });
 
-  socket.on("messages:init", (msgs) => {
-    messagesDiv.innerHTML = "";
+  socket.off("messages");
+  socket.off("message");
+
+  socket.on("messages", msgs => {
     msgs.forEach(addMessage);
   });
 
-  socket.on("message:new", addMessage);
+  socket.on("message", addMessage);
 }
 
-/* ---------------- CHAT ---------------- */
-
-btnSend.onclick = sendMessage;
-chatInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") sendMessage();
-});
-
-function sendMessage() {
-  const text = chatInput.value.trim();
-  if (!text) return;
-
-  socket.emit("message:send", {
-    roomId: currentChannel,
-    content: text
-  });
-
-  chatInput.value = "";
-}
-
-function addMessage(msg) {
+function addMessage(m) {
   const div = document.createElement("div");
-  div.className = "message";
-  div.textContent = `${msg.user}: ${msg.content}`;
+  div.textContent = `${m.user}: ${m.text}`;
   messagesDiv.appendChild(div);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-/* ---------------- SERVER ---------------- */
+/* ---- Send ---- */
 
-async function loadServer() {
-  const res = await fetch(`${API}/servers`, { method: "POST" });
-  currentServer = await res.json();
-}
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    socket.emit("send", {
+      channelId: currentChannel,
+      text: input.value
+    });
+    input.value = "";
+  }
+});
