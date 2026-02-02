@@ -20,7 +20,8 @@ const PORT = Number(process.env.PORT || 3000);
 const WEB_ORIGIN = "*";
 
 // adjust if your structure differs
-const WEB_PUBLIC_DIR = path.join(__dirname, "public");
+const WEB_PUBLIC_DIR = path.join(__dirname, "..", "..", "..", "web", "public");
+
 
 /* ------------------------------------------------------------------ */
 /* EXPRESS APP                                                         */
