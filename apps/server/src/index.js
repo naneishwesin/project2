@@ -10,7 +10,15 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const WEB_PUBLIC_DIR = path.join(__dirname, "..", "..", "..", "apps", "web", "public");
+const WEB_PUBLIC_DIR = path.join(
+  __dirname,
+  "..",
+  "..",
+  "..",
+  "apps",
+  "web",
+  "public"
+);
 
 /* ---------------- APP ---------------- */
 
@@ -19,7 +27,59 @@ app.use(cors({ origin: "*" }));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 
+/* ---------------- IN-MEMORY STATE ---------------- */
+
+const users = {};
+const servers = {};
+const channels = {};
+const messages = {};
+
+/* ---------------- HEALTH ---------------- */
+
 app.get("/api/health", (_, res) => res.json({ ok: true }));
+
+/* ---------------- AUTH ---------------- */
+
+app.post("/api/auth/login", (req, res) => {
+  const { username } = req.body;
+  users[username] = { username };
+  res.json({ user: { username } });
+});
+
+app.post("/api/auth/register", (req, res) => {
+  const { username } = req.body;
+  users[username] = { username };
+  res.json({ user: { username } });
+});
+
+/* ---------------- SERVERS ---------------- */
+
+app.post("/api/servers", (req, res) => {
+  const id = "s1";
+  servers[id] = { id, name: "Demo Server" };
+  channels[id] = [{ id: "c1", name: "general" }];
+  res.json(servers[id]);
+});
+
+app.get("/api/servers", (_, res) => {
+  res.json(Object.values(servers));
+});
+
+/* ---------------- CHANNELS ---------------- */
+
+app.post("/api/servers/:id/channels", (req, res) => {
+  const { id } = req.params;
+  const channel = {
+    id: "c" + Date.now(),
+    name: req.body.name || "new-channel"
+  };
+  channels[id].push(channel);
+  res.json(channel);
+});
+
+app.get("/api/servers/:id/channels", (req, res) => {
+  res.json(channels[req.params.id] || []);
+});
 
 /* ---------------- STATIC ---------------- */
 
@@ -28,40 +88,26 @@ app.get("*", (_, res) =>
   res.sendFile(path.join(WEB_PUBLIC_DIR, "index.html"))
 );
 
-/* ---------------- SERVER ---------------- */
+/* ---------------- SOCKETS ---------------- */
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-/* ---------------- DATA ---------------- */
-
-const rooms = {};
-const messages = {};
-
-/* ---------------- SOCKETS ---------------- */
-
 io.on("connection", (socket) => {
   console.log("socket connected", socket.id);
 
-  /* JOIN ROOM */
   socket.on("room:join", ({ roomId, username }) => {
     socket.join(roomId);
     socket.username = username;
-    rooms[roomId] = rooms[roomId] || [];
-    rooms[roomId].push(socket.id);
-
     socket.emit("messages:init", messages[roomId] || []);
   });
 
-  /* SEND MESSAGE */
   socket.on("message:send", ({ roomId, content }) => {
-    if (!content) return;
-
     const msg = {
       id: Date.now().toString(),
-      user: socket.username || "guest",
+      user: socket.username,
       content,
-      created_at: new Date().toISOString()
+      at: new Date().toISOString()
     };
 
     messages[roomId] = messages[roomId] || [];
@@ -70,23 +116,11 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("message:new", msg);
   });
 
-  /* ---------------- VIDEO CALL SIGNALING ---------------- */
+  /* ---- VIDEO SIGNALING ---- */
 
-  socket.on("call:offer", ({ roomId, offer }) => {
-    socket.to(roomId).emit("call:offer", { offer });
-  });
-
-  socket.on("call:answer", ({ roomId, answer }) => {
-    socket.to(roomId).emit("call:answer", { answer });
-  });
-
-  socket.on("call:ice", ({ roomId, candidate }) => {
-    socket.to(roomId).emit("call:ice", { candidate });
-  });
-
-  socket.on("disconnect", () => {
-    console.log("socket disconnected", socket.id);
-  });
+  socket.on("call:offer", (d) => socket.to(d.roomId).emit("call:offer", d));
+  socket.on("call:answer", (d) => socket.to(d.roomId).emit("call:answer", d));
+  socket.on("call:ice", (d) => socket.to(d.roomId).emit("call:ice", d));
 });
 
 /* ---------------- START ---------------- */
